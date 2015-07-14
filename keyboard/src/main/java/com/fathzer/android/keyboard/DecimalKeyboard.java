@@ -66,12 +66,16 @@ public class DecimalKeyboard {
 		mHostActivity.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
 	}
 
-	/** Returns whether the CustomKeyboard is visible. */
+	/** Tests whether this CustomKeyboard is visible.
+	 * @return true if the keyboard is visible
+	 */
 	public boolean isCustomKeyboardVisible() {
 		return mKeyboardView.getVisibility() == View.VISIBLE;
 	}
 
-	/** Make the CustomKeyboard visible, and hide the system keyboard for view v. */
+	/** Makes the CustomKeyboard visible, and hide the system keyboard for a view.
+	 * @param v The view
+	 */
 	public void showCustomKeyboard(View v) {
 		mKeyboardView.setVisibility(View.VISIBLE);
 		mKeyboardView.setEnabled(true);
@@ -88,7 +92,7 @@ public class DecimalKeyboard {
 	}
 
 	/**
-	 * Register <var>EditText<var> with resource id <var>resid</var> (on the
+	 * Register <var>EditText</var> with resource id <var>resid</var> (on the
 	 * hosting activity) for using this custom keyboard.
 	 * 
 	 * @param resid
