@@ -48,3 +48,9 @@ dependencies {
 
 apply from: 'https://raw.githubusercontent.com/nuuneoi/JCenter/master/installv1.gradle'
 apply from: 'https://raw.githubusercontent.com/nuuneoi/JCenter/master/bintrayv1.gradle'
+/* Warning: In order to be able to sign the library artifacts, local.properties should contains
+the following lines (of course, **** should be replaced by the right values):
+bintray.user=****
+bintray.apikey=****
+bintray.gpg.password=****
+ */
