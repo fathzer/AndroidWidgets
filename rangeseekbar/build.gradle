@@ -1,0 +1,56 @@
+apply plugin: 'com.android.library'
+
+ext {
+    bintrayRepo = 'maven'
+    bintrayName = 'android-range-seekbar'
+
+    publishedGroupId = 'com.fathzer.android'
+    libraryName = 'RangeSeekBar'
+    artifact = 'seekbar'
+
+    libraryDescription = 'A seekBar that allows range selection.'
+
+    siteUrl = 'https://github.com/fathzer/AndroidWidgets'
+    gitUrl = 'https://github.com/fathzer/AndroidWidgets'
+
+    libraryVersion = '0.0.1'
+
+    developerId = 'fathzer'
+    developerName = 'Jean-Marc Astesana'
+    developerEmail = 'admin@fathzer.com'
+
+    licenseName = 'The Apache Software License, Version 2.0'
+    licenseUrl = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+    allLicenses = ["Apache-2.0"]
+}
+
+android {
+    compileSdkVersion 22
+    buildToolsVersion "21.1.2"
+
+    defaultConfig {
+        minSdkVersion 9
+        targetSdkVersion 22
+        versionCode 1
+        versionName "1.0"
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+dependencies {
+    compile fileTree(dir: 'libs', include: ['*.jar'])
+}
+
+apply from: 'https://raw.githubusercontent.com/nuuneoi/JCenter/master/installv1.gradle'
+apply from: 'https://raw.githubusercontent.com/nuuneoi/JCenter/master/bintrayv1.gradle'
+/* Warning: In order to be able to sign the library artifacts, local.properties should contains
+the following lines (of course, **** should be replaced by the right values):
+bintray.user=****
+bintray.apikey=****
+bintray.gpg.password=****
+ */
