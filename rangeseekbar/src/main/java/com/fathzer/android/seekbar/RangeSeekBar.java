@@ -11,7 +11,6 @@ import android.graphics.RectF;
 import android.os.Bundle;
 import android.os.Parcelable;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.MotionEvent;
 import android.view.ViewConfiguration;
 import android.widget.ImageView;
@@ -40,7 +39,7 @@ public class RangeSeekBar extends ImageView {
 	private final float lineHeight = 0.3f * thumbHalfHeight;
 	private final float padding = thumbHalfWidth;
 	private int absoluteMinValue, absoluteMaxValue;
-	private int normalizedMinValue, normalizedMaxValue;
+	private int minValue, maxValue;
 	private Thumb pressedThumb = null;
 	private boolean notifyWhileDragging = false;
 	private OnRangeSeekBarChangeListener listener;
@@ -91,8 +90,8 @@ public class RangeSeekBar extends ImageView {
 	private void init(int absoluteMinValue, int absoluteMaxValue) {
 		this.absoluteMinValue = absoluteMinValue;
 		this.absoluteMaxValue = absoluteMaxValue;
-		normalizedMinValue = absoluteMinValue;
-		normalizedMaxValue = absoluteMaxValue;
+		minValue = absoluteMinValue;
+		maxValue = absoluteMaxValue;
 
 		// make RangeSeekBar focusable. This solves focus handling issues in case
 		// EditText widgets are being used along with the RangeSeekBar within
@@ -141,7 +140,7 @@ public class RangeSeekBar extends ImageView {
 	 * @return The currently selected min value.
 	 */
 	public int getSelectedMinValue() {
-		return normalizedMinValue;
+		return minValue;
 	}
 
 	/**
@@ -156,9 +155,9 @@ public class RangeSeekBar extends ImageView {
 		if (value<getAbsoluteMinValue()) {
 			throw new IllegalArgumentException("Value ("+value+") can't be less than "+getAbsoluteMinValue());
 		}
-		normalizedMinValue = value;
-		if (value>normalizedMaxValue) {
-			normalizedMaxValue = value;
+		minValue = value;
+		if (value> maxValue) {
+			maxValue = value;
 		}
 		invalidate();
 	}
@@ -169,7 +168,7 @@ public class RangeSeekBar extends ImageView {
 	 * @return The currently selected max value.
 	 */
 	public int getSelectedMaxValue() {
-		return normalizedMaxValue;
+		return maxValue;
 	}
 
 	/**
@@ -184,9 +183,9 @@ public class RangeSeekBar extends ImageView {
 		if (value>getAbsoluteMaxValue()) {
 			throw new IllegalArgumentException("Value ("+value+") can't be more than "+getAbsoluteMaxValue());
 		}
-		normalizedMaxValue = value;
-		if (value<normalizedMinValue) {
-			normalizedMinValue = value;
+		maxValue = value;
+		if (value< minValue) {
+			minValue = value;
 		}
 		invalidate();
 	}
@@ -392,24 +391,24 @@ public class RangeSeekBar extends ImageView {
 		// draw seek bar background line
 		final RectF rect = new RectF(padding, 0.5f * (getHeight() - lineHeight), getWidth() - padding,
 				0.5f * (getHeight() + lineHeight));
-		paint.setStyle(Style.FILL);
+			paint.setStyle(Style.FILL);
 		paint.setColor(Color.GRAY);
 		paint.setAntiAlias(true);
 		canvas.drawRect(rect, paint);
 
 		// draw seek bar active range line
-		rect.left = normalizedToScreen(normalizedMinValue);
-		rect.right = normalizedToScreen(normalizedMaxValue);
+		rect.left = valueToScreen(minValue);
+		rect.right = valueToScreen(maxValue);
 
 		// orange color
 		paint.setColor(DEFAULT_COLOR);
 		canvas.drawRect(rect, paint);
 
 		// draw minimum thumb
-		drawThumb(normalizedToScreen(normalizedMinValue), Thumb.MIN.equals(pressedThumb), canvas);
+		drawThumb(valueToScreen(minValue), Thumb.MIN.equals(pressedThumb), canvas);
 
 		// draw maximum thumb
-		drawThumb(normalizedToScreen(normalizedMaxValue), Thumb.MAX.equals(pressedThumb), canvas);
+		drawThumb(valueToScreen(maxValue), Thumb.MAX.equals(pressedThumb), canvas);
 	}
 
 	/**
@@ -422,8 +421,8 @@ public class RangeSeekBar extends ImageView {
 	protected Parcelable onSaveInstanceState() {
 		final Bundle bundle = new Bundle();
 		bundle.putParcelable(SUPER, super.onSaveInstanceState());
-		bundle.putInt(MIN, normalizedMinValue);
-		bundle.putInt(MAX, normalizedMaxValue);
+		bundle.putInt(MIN, minValue);
+		bundle.putInt(MAX, maxValue);
 		return bundle;
 	}
 
@@ -436,8 +435,8 @@ public class RangeSeekBar extends ImageView {
 	protected void onRestoreInstanceState(Parcelable parcel) {
 		final Bundle bundle = (Bundle) parcel;
 		super.onRestoreInstanceState(bundle.getParcelable(SUPER));
-		normalizedMinValue = bundle.getInt(MIN);
-		normalizedMaxValue = bundle.getInt(MAX);
+		minValue = bundle.getInt(MIN);
+		maxValue = bundle.getInt(MAX);
 	}
 
 	/**
@@ -452,7 +451,7 @@ public class RangeSeekBar extends ImageView {
 	 */
 	private void drawThumb(float screenCoord, boolean pressed, Canvas canvas) {
 		canvas.drawBitmap(pressed ? thumbPressedImage : thumbImage, screenCoord - thumbHalfWidth,
-				(float) ((0.5f * getHeight()) - thumbHalfHeight), paint);
+				0.5f * getHeight() - thumbHalfHeight, paint);
 	}
 
 	/**
@@ -464,8 +463,8 @@ public class RangeSeekBar extends ImageView {
 	 */
 	private Thumb evalPressedThumb(float touchX) {
 		Thumb result = null;
-		boolean minThumbPressed = isInThumbRange(touchX, normalizedMinValue);
-		boolean maxThumbPressed = isInThumbRange(touchX, normalizedMaxValue);
+		boolean minThumbPressed = isInThumbRange(touchX, minValue);
+		boolean maxThumbPressed = isInThumbRange(touchX, maxValue);
 		if (minThumbPressed && maxThumbPressed) {
 			// if both thumbs are pressed (they lie on top of each other), choose the
 			// one with more room to drag. this avoids "stalling" the thumbs in a
@@ -490,18 +489,18 @@ public class RangeSeekBar extends ImageView {
 	 * @return true if x-coordinate is in thumb range, false otherwise.
 	 */
 	private boolean isInThumbRange(float touchX, int normalizedThumbValue) {
-		return Math.abs(touchX - normalizedToScreen(normalizedThumbValue)) <= thumbHalfWidth;
+		return Math.abs(touchX - valueToScreen(normalizedThumbValue)) <= thumbHalfWidth;
 	}
 
 	/**
 	 * Converts a value into screen space.
 	 *
 	 * @param value
-	 *          The normalized value to convert.
+	 *          The value to convert.
 	 * @return The converted value in screen space.
 	 */
-	private float normalizedToScreen(int value) {
-		return (float) (padding + (value-getAbsoluteMinValue()) * (getWidth() - 2 * padding) / (getAbsoluteMaxValue()-getAbsoluteMinValue()));
+	private float valueToScreen(int value) {
+		return (padding + (value-getAbsoluteMinValue()) * (getWidth() - 2 * padding) / (getAbsoluteMaxValue()-getAbsoluteMinValue()));
 	}
 
 	/**
@@ -536,7 +535,7 @@ public class RangeSeekBar extends ImageView {
 	/**
 	 * Thumb constants (min and max).
 	 */
-	private static enum Thumb {
+	private enum Thumb {
 		MIN, MAX
 	}
 }
