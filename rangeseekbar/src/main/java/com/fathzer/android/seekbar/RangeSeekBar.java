@@ -10,27 +10,24 @@ import android.graphics.Paint.Style;
 import android.graphics.RectF;
 import android.os.Bundle;
 import android.os.Parcelable;
+import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.ViewConfiguration;
 import android.widget.ImageView;
 
-import java.math.BigDecimal;
-import java.text.MessageFormat;
-
 /**
- * Widget that lets users select a minimum and maximum value on a given numerical range. The range value types can be one of Long, Double, Integer, Float, Short, Byte or BigDecimal.<br>
+ * Widget that lets users select a minimum and maximum value on a given range.
  * <br>
  * Improved {@link MotionEvent} handling for smoother use, anti-aliased painting for improved aesthetics.
- * 
+ * @author Jean-Marc Astesana
+ * Based on an original work of
  * @author Stephan Tittel (stephan.tittel@kom.tu-darmstadt.de)
  * @author Peter Sinnott (psinnott@gmail.com)
  * @author Thomas Barrasso (tbarrasso@sevenplusandroid.org)
- * 
- * @param <T>
- *            The Number type of the range values. One of Long, Double, Integer, Float, Short, Byte or BigDecimal.
+ *
  */
-public class RangeSeekBar<T extends Number> extends ImageView {
+public class RangeSeekBar extends ImageView {
 	private static final String MAX = "MAX";
 	private static final String MIN = "MIN";
 	private static final String SUPER = "SUPER";
@@ -42,14 +39,11 @@ public class RangeSeekBar<T extends Number> extends ImageView {
 	private final float thumbHalfHeight = 0.5f * thumbImage.getHeight();
 	private final float lineHeight = 0.3f * thumbHalfHeight;
 	private final float padding = thumbHalfWidth;
-	private final T absoluteMinValue, absoluteMaxValue;
-	private final NumberType numberType;
-	private final double absoluteMinValuePrim, absoluteMaxValuePrim;
-	private double normalizedMinValue = 0d;
-	private double normalizedMaxValue = 1d;
+	private int absoluteMinValue, absoluteMaxValue;
+	private int normalizedMinValue, normalizedMaxValue;
 	private Thumb pressedThumb = null;
 	private boolean notifyWhileDragging = false;
-	private OnRangeSeekBarChangeListener<T> listener;
+	private OnRangeSeekBarChangeListener listener;
 
 	/**
 	 * Default color of a {@link RangeSeekBar}, #FF33B5E5. This is also known as
@@ -72,9 +66,14 @@ public class RangeSeekBar<T extends Number> extends ImageView {
 	private int mScaledTouchSlop;
 	private boolean mIsDragging;
 
+	public RangeSeekBar(Context context, AttributeSet attrs) {
+		super(context, attrs);
+		init(0,100);
+	}
+
 	/**
 	 * Creates a new RangeSeekBar.
-	 * 
+	 *
 	 * @param absoluteMinValue
 	 *          The minimum value of the selectable range.
 	 * @param absoluteMaxValue
@@ -84,23 +83,22 @@ public class RangeSeekBar<T extends Number> extends ImageView {
 	 *           Will be thrown if min/max value type is not one of Long, Double,
 	 *           Integer, Float, Short, Byte or BigDecimal.
 	 */
-	public RangeSeekBar(T absoluteMinValue, T absoluteMaxValue, Context context) {
+	public RangeSeekBar(int absoluteMinValue, int absoluteMaxValue, Context context) {
 		super(context);
+		init(absoluteMinValue, absoluteMaxValue);
+	}
+
+	private void init(int absoluteMinValue, int absoluteMaxValue) {
 		this.absoluteMinValue = absoluteMinValue;
 		this.absoluteMaxValue = absoluteMaxValue;
-		absoluteMinValuePrim = absoluteMinValue.doubleValue();
-		absoluteMaxValuePrim = absoluteMaxValue.doubleValue();
-		numberType = NumberType.fromNumber(absoluteMinValue);
+		normalizedMinValue = absoluteMinValue;
+		normalizedMaxValue = absoluteMaxValue;
 
 		// make RangeSeekBar focusable. This solves focus handling issues in case
 		// EditText widgets are being used along with the RangeSeekBar within
 		// ScollViews.
 		setFocusable(true);
 		setFocusableInTouchMode(true);
-		init();
-	}
-
-	private void init() {
 		mScaledTouchSlop = ViewConfiguration.get(getContext()).getScaledTouchSlop();
 	}
 
@@ -120,84 +118,86 @@ public class RangeSeekBar<T extends Number> extends ImageView {
 	/**
 	 * Returns the absolute minimum value of the range that has been set at
 	 * construction time.
-	 * 
+	 *
 	 * @return The absolute minimum value of the range.
 	 */
-	public T getAbsoluteMinValue() {
+	public int getAbsoluteMinValue() {
 		return absoluteMinValue;
 	}
 
 	/**
 	 * Returns the absolute maximum value of the range that has been set at
 	 * construction time.
-	 * 
+	 *
 	 * @return The absolute maximum value of the range.
 	 */
-	public T getAbsoluteMaxValue() {
+	public int getAbsoluteMaxValue() {
 		return absoluteMaxValue;
 	}
 
 	/**
 	 * Returns the currently selected min value.
-	 * 
+	 *
 	 * @return The currently selected min value.
 	 */
-	public T getSelectedMinValue() {
-		return normalizedToValue(normalizedMinValue);
+	public int getSelectedMinValue() {
+		return normalizedMinValue;
 	}
 
 	/**
 	 * Sets the currently selected minimum value. The widget will be invalidated
 	 * and redrawn.
-	 * 
+	 *
 	 * @param value
 	 *          The Number value to set the minimum value to. Will be clamped to
 	 *          given absolute minimum/maximum range.
 	 */
-	public void setSelectedMinValue(T value) {
-		// in case absoluteMinValue == absoluteMaxValue, avoid division by zero when
-		// normalizing.
-		if (0 == (absoluteMaxValuePrim - absoluteMinValuePrim)) {
-			setNormalizedMinValue(0d);
-		} else {
-			setNormalizedMinValue(valueToNormalized(value));
+	public void setSelectedMinValue(int value) {
+		if (value<getAbsoluteMinValue()) {
+			throw new IllegalArgumentException("Value ("+value+") can't be less than "+getAbsoluteMinValue());
 		}
+		normalizedMinValue = value;
+		if (value>normalizedMaxValue) {
+			normalizedMaxValue = value;
+		}
+		invalidate();
 	}
 
 	/**
 	 * Returns the currently selected max value.
-	 * 
+	 *
 	 * @return The currently selected max value.
 	 */
-	public T getSelectedMaxValue() {
-		return normalizedToValue(normalizedMaxValue);
+	public int getSelectedMaxValue() {
+		return normalizedMaxValue;
 	}
 
 	/**
 	 * Sets the currently selected maximum value. The widget will be invalidated
 	 * and redrawn.
-	 * 
+	 *
 	 * @param value
 	 *          The Number value to set the maximum value to. Will be clamped to
 	 *          given absolute minimum/maximum range.
 	 */
-	public void setSelectedMaxValue(T value) {
-		// in case absoluteMinValue == absoluteMaxValue, avoid division by zero when
-		// normalizing.
-		if (0 == (absoluteMaxValuePrim - absoluteMinValuePrim)) {
-			setNormalizedMaxValue(1d);
-		} else {
-			setNormalizedMaxValue(valueToNormalized(value));
+	public void setSelectedMaxValue(int value) {
+		if (value>getAbsoluteMaxValue()) {
+			throw new IllegalArgumentException("Value ("+value+") can't be more than "+getAbsoluteMaxValue());
 		}
+		normalizedMaxValue = value;
+		if (value<normalizedMinValue) {
+			normalizedMinValue = value;
+		}
+		invalidate();
 	}
 
 	/**
 	 * Registers given listener callback to notify about changed selected values.
-	 * 
+	 *
 	 * @param listener
 	 *          The listener to notify about changed selected values.
 	 */
-	public void setOnRangeSeekBarChangeListener(OnRangeSeekBarChangeListener<T> listener) {
+	public void setOnRangeSeekBarChangeListener(OnRangeSeekBarChangeListener listener) {
 		this.listener = listener;
 	}
 
@@ -213,24 +213,24 @@ public class RangeSeekBar<T extends Number> extends ImageView {
 
 		final int action = event.getAction();
 		switch (action & MotionEvent.ACTION_MASK) {
-		case MotionEvent.ACTION_DOWN:
-			return doActionDown(event);
-		case MotionEvent.ACTION_MOVE:
-			doActionMove(event);
-			break;
-		case MotionEvent.ACTION_UP:
-			doActionUp(event);
-			break;
-		case MotionEvent.ACTION_POINTER_DOWN:
-			doPointerDown(event);
-			break;
-		case MotionEvent.ACTION_POINTER_UP:
-			doPointerUp(event);
-			break;
-		case MotionEvent.ACTION_CANCEL:
-			doActionCancel();
-			break;
-		default :
+			case MotionEvent.ACTION_DOWN:
+				return doActionDown(event);
+			case MotionEvent.ACTION_MOVE:
+				doActionMove(event);
+				break;
+			case MotionEvent.ACTION_UP:
+				doActionUp(event);
+				break;
+			case MotionEvent.ACTION_POINTER_DOWN:
+				doPointerDown(event);
+				break;
+			case MotionEvent.ACTION_POINTER_UP:
+				doPointerUp(event);
+				break;
+			case MotionEvent.ACTION_CANCEL:
+				doActionCancel();
+				break;
+			default :
 		}
 		return true;
 	}
@@ -335,9 +335,9 @@ public class RangeSeekBar<T extends Number> extends ImageView {
 		final float x = event.getX(pointerIndex);
 
 		if (Thumb.MIN.equals(pressedThumb)) {
-			setNormalizedMinValue(screenToNormalized(x));
+			setSelectedMinValue(screenToValue(x));
 		} else if (Thumb.MAX.equals(pressedThumb)) {
-			setNormalizedMaxValue(screenToNormalized(x));
+			setSelectedMaxValue(screenToValue(x));
 		}
 	}
 
@@ -420,11 +420,10 @@ public class RangeSeekBar<T extends Number> extends ImageView {
 	 */
 	@Override
 	protected Parcelable onSaveInstanceState() {
-		Log.v(this.getClass().getName(), "Saving instance state ...");
 		final Bundle bundle = new Bundle();
 		bundle.putParcelable(SUPER, super.onSaveInstanceState());
-		bundle.putDouble(MIN, normalizedMinValue);
-		bundle.putDouble(MAX, normalizedMaxValue);
+		bundle.putInt(MIN, normalizedMinValue);
+		bundle.putInt(MAX, normalizedMaxValue);
 		return bundle;
 	}
 
@@ -435,16 +434,15 @@ public class RangeSeekBar<T extends Number> extends ImageView {
 	 */
 	@Override
 	protected void onRestoreInstanceState(Parcelable parcel) {
-		Log.v(this.getClass().getName(), "Restoring instance state ...");
 		final Bundle bundle = (Bundle) parcel;
 		super.onRestoreInstanceState(bundle.getParcelable(SUPER));
-		normalizedMinValue = bundle.getDouble(MIN);
-		normalizedMaxValue = bundle.getDouble(MAX);
+		normalizedMinValue = bundle.getInt(MIN);
+		normalizedMaxValue = bundle.getInt(MAX);
 	}
 
 	/**
 	 * Draws the "normal" resp. "pressed" thumb image on specified x-coordinate.
-	 * 
+	 *
 	 * @param screenCoord
 	 *          The x-coordinate in screen space where to draw the image.
 	 * @param pressed
@@ -459,7 +457,7 @@ public class RangeSeekBar<T extends Number> extends ImageView {
 
 	/**
 	 * Decides which (if any) thumb is touched by the given x-coordinate.
-	 * 
+	 *
 	 * @param touchX
 	 *          The x-coordinate of a touch event in screen space.
 	 * @return The pressed thumb or null if none has been touched.
@@ -484,107 +482,55 @@ public class RangeSeekBar<T extends Number> extends ImageView {
 	/**
 	 * Decides if given x-coordinate in screen space needs to be interpreted as
 	 * "within" the normalized thumb x-coordinate.
-	 * 
+	 *
 	 * @param touchX
 	 *          The x-coordinate in screen space to check.
 	 * @param normalizedThumbValue
 	 *          The normalized x-coordinate of the thumb to check.
 	 * @return true if x-coordinate is in thumb range, false otherwise.
 	 */
-	private boolean isInThumbRange(float touchX, double normalizedThumbValue) {
+	private boolean isInThumbRange(float touchX, int normalizedThumbValue) {
 		return Math.abs(touchX - normalizedToScreen(normalizedThumbValue)) <= thumbHalfWidth;
 	}
 
 	/**
-	 * Sets normalized min value to value so that 0 &lt;= value &lt;= normalized max
-	 * value &lt;= 1. The View will get invalidated when calling this method.
+	 * Converts a value into screen space.
+	 *
 	 * @param value
-	 *          The new normalized min value to set.
-	 */
-	public void setNormalizedMinValue(double value) {
-		normalizedMinValue = Math.max(0d, Math.min(1d, Math.min(value, normalizedMaxValue)));
-		invalidate();
-	}
-
-	/**
-	 * Sets normalized max value to value so that 0 &lt;= normalized min value &lt;=
-	 * value &lt;= 1. The View will get invalidated when calling this method.
-	 * 
-	 * @param value
-	 *          The new normalized max value to set.
-	 */
-	public void setNormalizedMaxValue(double value) {
-		normalizedMaxValue = Math.max(0d, Math.min(1d, Math.max(value, normalizedMinValue)));
-		invalidate();
-	}
-
-	/**
-	 * Converts a normalized value to a Number object in the value space between
-	 * absolute minimum and maximum.
-	 * 
-	 * @param normalized
-	 * @return the value
-	 */
-	@SuppressWarnings("unchecked")
-	private T normalizedToValue(double normalized) {
-		Log.v(getClass().getName(), MessageFormat.format("absoluteMinValue={0}. absoluteMaxValue={1}. normalized={2}",absoluteMinValue, absoluteMaxValue, normalized));
-		return (T) numberType.toNumber(absoluteMinValuePrim + normalized * (absoluteMaxValuePrim - absoluteMinValuePrim));
-	}
-
-	/**
-	 * Converts the given Number value to a normalized double.
-	 * 
-	 * @param value
-	 *          The Number value to normalize.
-	 * @return The normalized double.
-	 */
-	private double valueToNormalized(T value) {
-		if (0 == absoluteMaxValuePrim - absoluteMinValuePrim) {
-			// prevent division by zero, simply return 0.
-			return 0d;
-		}
-		return (value.doubleValue() - absoluteMinValuePrim) / (absoluteMaxValuePrim - absoluteMinValuePrim);
-	}
-
-	/**
-	 * Converts a normalized value into screen space.
-	 * 
-	 * @param normalizedCoord
 	 *          The normalized value to convert.
 	 * @return The converted value in screen space.
 	 */
-	private float normalizedToScreen(double normalizedCoord) {
-		return (float) (padding + normalizedCoord * (getWidth() - 2 * padding));
+	private float normalizedToScreen(int value) {
+		return (float) (padding + (value-getAbsoluteMinValue()) * (getWidth() - 2 * padding) / (getAbsoluteMaxValue()-getAbsoluteMinValue()));
 	}
 
 	/**
-	 * Converts screen space x-coordinates into normalized values.
-	 * 
+	 * Converts screen space x-coordinates into value.
+	 *
 	 * @param screenCoord
 	 *          The x-coordinate in screen space to convert.
-	 * @return The normalized value.
+	 * @return The value.
 	 */
-	private double screenToNormalized(float screenCoord) {
+	private int screenToValue(float screenCoord) {
 		int width = getWidth();
+		if (screenCoord<padding) {
+			screenCoord = padding;
+		} else if (screenCoord>width-padding) {
+			screenCoord = width-padding;
+		}
 		if (width <= 2 * padding) {
 			// prevent division by zero, simply return 0.
-			return 0d;
+			return getAbsoluteMinValue();
 		} else {
-			double result = (screenCoord - padding) / (width - 2 * padding);
-			return Math.min(1d, Math.max(0d, result));
+			return getAbsoluteMinValue() + (int)((getAbsoluteMaxValue()-getAbsoluteMinValue())* (screenCoord - padding) / (width - 2 * padding));
 		}
 	}
 
 	/**
 	 * Callback listener interface to notify about changed range values.
-	 * 
-	 * @author Stephan Tittel (stephan.tittel@kom.tu-darmstadt.de)
-	 * 
-	 * @param <T>
-	 *          The Number type the RangeSeekBar has been declared with.
 	 */
-	public interface OnRangeSeekBarChangeListener<T> {
-		void onRangeSeekBarValuesChanged(RangeSeekBar<?> bar, T minValue, T maxValue);
+	public interface OnRangeSeekBarChangeListener {
+		void onRangeSeekBarValuesChanged(RangeSeekBar bar, int minValue, int maxValue);
 	}
 
 	/**
@@ -592,55 +538,5 @@ public class RangeSeekBar<T extends Number> extends ImageView {
 	 */
 	private static enum Thumb {
 		MIN, MAX
-	}
-
-	/**
-	 * Utility enumaration used to convert between Numbers and doubles.
-	 * 
-	 * @author Stephan Tittel (stephan.tittel@kom.tu-darmstadt.de)
-	 * 
-	 */
-	private static enum NumberType {
-		LONG, DOUBLE, INTEGER, FLOAT, SHORT, BYTE, BIG_DECIMAL;
-
-		public static <E extends Number> NumberType fromNumber(E value) throws IllegalArgumentException {
-			if (value instanceof Long) {
-				return LONG;
-			} else if (value instanceof Double) {
-				return DOUBLE;
-			} else if (value instanceof Integer) {
-				return INTEGER;
-			} else if (value instanceof Float) {
-				return FLOAT;
-			} else if (value instanceof Short) {
-				return SHORT;
-			} else if (value instanceof Byte) {
-				return BYTE;
-			} else if (value instanceof BigDecimal) {
-				return BIG_DECIMAL;
-			} else {
-				throw new IllegalArgumentException("Number class '" + value.getClass().getName() + "' is not supported");
-			}
-		}
-
-		public Number toNumber(double value) {
-			switch (this) {
-			case LONG:
-				return Long.valueOf((long) value);
-			case DOUBLE:
-				return value;
-			case INTEGER:
-				return Integer.valueOf((int) value);
-			case FLOAT:
-				return new Float(value);
-			case SHORT:
-				return Short.valueOf((short) value);
-			case BYTE:
-				return Byte.valueOf((byte) value);
-			case BIG_DECIMAL:
-				return new BigDecimal(value);
-			default: throw new InstantiationError("can't convert " + this + " to a Number object");
-			}
-		}
 	}
 }
