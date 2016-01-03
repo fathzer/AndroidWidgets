@@ -4,4 +4,8 @@
 
     <string name="rangeSeekBarTitle">RangeSeekBar</string>
     <string name="action_settings">Settings</string>
+    <string name="absoluteMin.title">Absolute min:</string>
+    <string name="absoluteMax.title">Absolute max:</string>
+    <string name="set.title">set</string>
+    <string name="sendEventsWhileMoving">Send events while dragging</string>
 </resources>

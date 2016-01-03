@@ -12,7 +12,7 @@
             <option value="$PROJECT_DIR$/app" />
             <option value="$PROJECT_DIR$/keyboard" />
             <option value="$PROJECT_DIR$/multispinner" />
-            <option value="$PROJECT_DIR$/rangeseekbar" />
+            <option value="$PROJECT_DIR$/seekbar" />
           </set>
         </option>
       </GradleProjectSettings>

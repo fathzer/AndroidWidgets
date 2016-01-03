@@ -1,6 +1,7 @@
 package com.fathzer.android.seekbar;
 
 import android.content.Context;
+import android.content.res.TypedArray;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
@@ -11,6 +12,7 @@ import android.graphics.RectF;
 import android.os.Bundle;
 import android.os.Parcelable;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.ViewConfiguration;
 import android.widget.ImageView;
@@ -27,6 +29,8 @@ import android.widget.ImageView;
  *
  */
 public class RangeSeekBar extends ImageView {
+	private static final String ABSOLUTE_MAX = "ABSOLUTE_MAX";
+	private static final String ABSOLUTE_MIN = "ABSOLUTE_MIN";
 	private static final String MAX = "MAX";
 	private static final String MIN = "MIN";
 	private static final String SUPER = "SUPER";
@@ -67,7 +71,16 @@ public class RangeSeekBar extends ImageView {
 
 	public RangeSeekBar(Context context, AttributeSet attrs) {
 		super(context, attrs);
-		init(0,100);
+		TypedArray a = context.getTheme().obtainStyledAttributes(attrs, R.styleable.RangeSeekBar, 0, 0);
+		try {
+			int absoluteMinValue = a.getInteger(R.styleable.RangeSeekBar_absoluteMin, 0);
+			int absoluteMaxValue = a.getInteger(R.styleable.RangeSeekBar_absoluteMax, 100);
+			int min = a.getInteger(R.styleable.RangeSeekBar_min, absoluteMinValue);
+			int max = a.getInteger(R.styleable.RangeSeekBar_max, absoluteMaxValue);
+			init(absoluteMinValue, absoluteMaxValue, min, max);
+		} finally {
+			a.recycle();
+		}
 	}
 
 	/**
@@ -84,18 +97,21 @@ public class RangeSeekBar extends ImageView {
 	 */
 	public RangeSeekBar(int absoluteMinValue, int absoluteMaxValue, Context context) {
 		super(context);
-		init(absoluteMinValue, absoluteMaxValue);
+		init(absoluteMinValue, absoluteMaxValue, absoluteMinValue, absoluteMaxValue);
 	}
 
-	private void init(int absoluteMinValue, int absoluteMaxValue) {
-		this.absoluteMinValue = absoluteMinValue;
-		this.absoluteMaxValue = absoluteMaxValue;
-		minValue = absoluteMinValue;
-		maxValue = absoluteMaxValue;
+	private void init(int absoluteMin, int absoluteMax, int min, int max) {
+		if (absoluteMin>absoluteMax) {
+			throw new IllegalArgumentException();
+		}
+		this.absoluteMinValue = absoluteMin;
+		this.absoluteMaxValue = absoluteMax;
+		setSelectedMinValue(min);
+		setSelectedMaxValue(max);
 
 		// make RangeSeekBar focusable. This solves focus handling issues in case
 		// EditText widgets are being used along with the RangeSeekBar within
-		// ScollViews.
+		// ScrollViews.
 		setFocusable(true);
 		setFocusableInTouchMode(true);
 		mScaledTouchSlop = ViewConfiguration.get(getContext()).getScaledTouchSlop();
@@ -115,6 +131,27 @@ public class RangeSeekBar extends ImageView {
 	}
 
 	/**
+	 * Sets the absolute minimum value. The widget will be invalidated
+	 * and redrawn.
+	 *
+	 * @param value
+	 *          The Number value to set the minimum absolute value to.
+	 */
+	public void setAbsoluteMinValue(int value) {
+		absoluteMinValue = value;
+		if (value> absoluteMaxValue) {
+			absoluteMaxValue = value;
+		}
+		if (minValue<value) {
+			setSelectedMinValue(value);
+		}
+		if (maxValue<value) {
+			setSelectedMaxValue(value);
+		}
+		invalidate();
+	}
+
+	/**
 	 * Returns the absolute minimum value of the range that has been set at
 	 * construction time.
 	 *
@@ -122,6 +159,27 @@ public class RangeSeekBar extends ImageView {
 	 */
 	public int getAbsoluteMinValue() {
 		return absoluteMinValue;
+	}
+
+	/**
+	 * Sets the absolute maximum value. The widget will be invalidated
+	 * and redrawn.
+	 *
+	 * @param value
+	 *          The Number value to set the maximum absolute value to.
+	 */
+	public void setAbsoluteMaxValue(int value) {
+		absoluteMaxValue = value;
+		if (value<absoluteMinValue) {
+			absoluteMinValue = value;
+		}
+		if (minValue>value) {
+			setSelectedMinValue(value);
+		}
+		if (maxValue>value) {
+			setSelectedMaxValue(value);
+		}
+		invalidate();
 	}
 
 	/**
@@ -152,6 +210,10 @@ public class RangeSeekBar extends ImageView {
 	 *          given absolute minimum/maximum range.
 	 */
 	public void setSelectedMinValue(int value) {
+		setSelectedMinValue(value, true);
+	}
+
+	private void setSelectedMinValue(int value, boolean fireEvent) {
 		if (value<getAbsoluteMinValue()) {
 			throw new IllegalArgumentException("Value ("+value+") can't be less than "+getAbsoluteMinValue());
 		}
@@ -160,6 +222,9 @@ public class RangeSeekBar extends ImageView {
 			maxValue = value;
 		}
 		invalidate();
+		if (fireEvent && listener!=null) {
+			listener.onRangeSeekBarValuesChanged(this, minValue, maxValue);
+		}
 	}
 
 	/**
@@ -180,6 +245,10 @@ public class RangeSeekBar extends ImageView {
 	 *          given absolute minimum/maximum range.
 	 */
 	public void setSelectedMaxValue(int value) {
+		setSelectedMaxValue(value, true);
+	}
+
+	private void setSelectedMaxValue(int value, boolean fireEvent) {
 		if (value>getAbsoluteMaxValue()) {
 			throw new IllegalArgumentException("Value ("+value+") can't be more than "+getAbsoluteMaxValue());
 		}
@@ -188,6 +257,9 @@ public class RangeSeekBar extends ImageView {
 			minValue = value;
 		}
 		invalidate();
+		if (fireEvent && listener!=null) {
+			listener.onRangeSeekBarValuesChanged(this, minValue, maxValue);
+		}
 	}
 
 	/**
@@ -334,9 +406,9 @@ public class RangeSeekBar extends ImageView {
 		final float x = event.getX(pointerIndex);
 
 		if (Thumb.MIN.equals(pressedThumb)) {
-			setSelectedMinValue(screenToValue(x));
+			setSelectedMinValue(screenToValue(x), false);
 		} else if (Thumb.MAX.equals(pressedThumb)) {
-			setSelectedMaxValue(screenToValue(x));
+			setSelectedMaxValue(screenToValue(x), false);
 		}
 	}
 
@@ -358,8 +430,7 @@ public class RangeSeekBar extends ImageView {
 	}
 
 	/**
-	 * This is called when the user either releases his touch or the touch is
-	 * canceled.
+	 * This is called when the user either releases his touch or the touch is canceled.
 	 */
 	void onStopTrackingTouch() {
 		mIsDragging = false;
@@ -391,7 +462,7 @@ public class RangeSeekBar extends ImageView {
 		// draw seek bar background line
 		final RectF rect = new RectF(padding, 0.5f * (getHeight() - lineHeight), getWidth() - padding,
 				0.5f * (getHeight() + lineHeight));
-			paint.setStyle(Style.FILL);
+		paint.setStyle(Style.FILL);
 		paint.setColor(Color.GRAY);
 		paint.setAntiAlias(true);
 		canvas.drawRect(rect, paint);
@@ -423,6 +494,8 @@ public class RangeSeekBar extends ImageView {
 		bundle.putParcelable(SUPER, super.onSaveInstanceState());
 		bundle.putInt(MIN, minValue);
 		bundle.putInt(MAX, maxValue);
+		bundle.putInt(ABSOLUTE_MIN, absoluteMinValue);
+		bundle.putInt(ABSOLUTE_MAX, absoluteMaxValue);
 		return bundle;
 	}
 
@@ -435,6 +508,8 @@ public class RangeSeekBar extends ImageView {
 	protected void onRestoreInstanceState(Parcelable parcel) {
 		final Bundle bundle = (Bundle) parcel;
 		super.onRestoreInstanceState(bundle.getParcelable(SUPER));
+		absoluteMinValue = bundle.getInt(ABSOLUTE_MIN);
+		absoluteMaxValue = bundle.getInt(ABSOLUTE_MAX);
 		minValue = bundle.getInt(MIN);
 		maxValue = bundle.getInt(MAX);
 	}

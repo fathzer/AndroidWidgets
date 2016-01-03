@@ -1,1 +1,1 @@
-include ':app', ':keyboard', ':multispinner', ':rangeseekbar'
+include ':app', ':keyboard', ':multispinner', ':seekbar'

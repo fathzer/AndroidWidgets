@@ -5,7 +5,7 @@ ext {
     bintrayName = 'android-range-seekbar'
 
     publishedGroupId = 'com.fathzer.android'
-    libraryName = 'RangeSeekBar'
+    libraryName = 'seekbar'
     artifact = 'seekbar'
 
     libraryDescription = 'A seekBar that allows range selection.'
@@ -13,7 +13,7 @@ ext {
     siteUrl = 'https://github.com/fathzer/AndroidWidgets'
     gitUrl = 'https://github.com/fathzer/AndroidWidgets'
 
-    libraryVersion = '0.0.2'
+    libraryVersion = '0.0.4'
 
     developerId = 'fathzer'
     developerName = 'Jean-Marc Astesana'
@@ -31,8 +31,8 @@ android {
     defaultConfig {
         minSdkVersion 9
         targetSdkVersion 22
-        versionCode 2
-        versionName "1.0.1"
+        versionCode 1
+        versionName "0.0.4"
     }
     buildTypes {
         release {
